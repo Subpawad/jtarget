@@ -368,8 +368,9 @@ $areazones = getAreazones($conn);
                     <!-- Additional sections for other methods can be added here -->
 
                     <div class="button-group">
-                        <button type="submit">บันทึก</button>
+            
                         <button type="button" id="back-button" onclick="goBack()">ย้อนกลับ</button>
+                        <button type="submit">บันทึก</button>
                     </div>
                 </form>
             </div>
@@ -390,6 +391,7 @@ $areazones = getAreazones($conn);
             <td><?php echo htmlspecialchars($row['target_year']); ?></td>
             <td><?php echo htmlspecialchars($row['branch_name']); ?></td>
             <td><?php echo htmlspecialchars($row['total_amount']); ?></td>
+
             <td><a href="update.php?year=<?php echo urlencode($row['target_year']); ?>&branch_name=<?php echo urlencode($row['branch_name']); ?>">แก้ไข</a></td>
             <td><a href="delete.php?year=<?php echo urlencode($row['target_year']); ?>&branch_name=<?php echo urlencode($row['branch_name']); ?>">ลบ</a></td>
 

@@ -1,52 +1,44 @@
 <?php
-include 'db_connection.php'; // Include your database connection file
+include 'db_connection.php';
 
-// ดึงข้อมูลพารามิเตอร์จาก URL
-$year = isset($_GET['year']) ? intval($_GET['year']) : null;
+// รับค่าพารามิเตอร์จาก URL
+$year = isset($_GET['year']) ? $_GET['year'] : null;
 $branch_name = isset($_GET['branch_name']) ? $_GET['branch_name'] : null;
+$month = isset($_GET['month']) ? $_GET['month'] : null;
 
-if ($year && $branch_name) {
-    // ดึง branch_id จาก branch_name
-    $branch_sql = "SELECT branch_id FROM branch WHERE branch_name = ?";
-    if ($branch_stmt = $conn->prepare($branch_sql)) {
-        $branch_stmt->bind_param("s", $branch_name);
-        $branch_stmt->execute();
-        $branch_result = $branch_stmt->get_result();
-        $branch_row = $branch_result->fetch_assoc();
-        $branch_id = $branch_row['branch_id'];
-        $branch_stmt->close();
-    } else {
-        echo "Failed to prepare statement for branch.";
-        exit();
-    }
-
-    // ดึงข้อมูลเป้าหมายจากฐานข้อมูล
-    $sql = "SELECT target_month, target_amt FROM target WHERE target_year = ? AND branch_id = ?";
-    if ($stmt = $conn->prepare($sql)) {
-        $stmt->bind_param("ii", $year, $branch_id);
-        $stmt->execute();
-        $result = $stmt->get_result();
-        $targets = [];
-        while ($row = $result->fetch_assoc()) {
-            $targets[$row['target_month']] = $row['target_amt'];
-        }
-        $stmt->close();
-    } else {
-        echo "Failed to prepare statement for targets.";
-        exit();
-    }
-} else {
-    echo "Invalid parameters.";
-    exit();
+// ตรวจสอบว่าพารามิเตอร์ทั้งหมดมีค่าหรือไม่
+if (!$year || !$branch_name || !$month) {
+    die("Missing required parameters.");
 }
-// ดึงข้อมูลสาขาจากฐานข้อมูล
-$branch_sql = "SELECT branch_id, branch_name FROM branch";
-$branch_result = $conn->query($branch_sql);
 
-if ($branch_result === false) {
-    echo "Error: " . $conn->error;
-    exit();
+// ค้นหา branch_id จาก branch_name
+$branch_sql = "SELECT branch_id FROM branch WHERE branch_name = ?";
+$stmt = $conn->prepare($branch_sql);
+$stmt->bind_param('s', $branch_name);
+$stmt->execute();
+$result = $stmt->get_result();
+$branch = $result->fetch_assoc();
+
+if (!$branch) {
+    die('Branch not found.');
 }
+
+$branch_id = $branch['branch_id'];
+
+// ค้นหาข้อมูลเป้าหมายตามปี, branch_id และเดือน
+$sql = "SELECT target_amt FROM target WHERE target_year = ? AND branch_id = ? AND target_month = ?";
+$stmt = $conn->prepare($sql);
+$stmt->bind_param('iii', $year, $branch_id, $month);
+$stmt->execute();
+$result = $stmt->get_result();
+$target = $result->fetch_assoc();
+
+// ตรวจสอบว่าพบข้อมูลเป้าหมายหรือไม่
+if (!$target) {
+    die('No target data found.');
+}
+
+$target_amount = $target['target_amt'];
 ?>
 
 <!DOCTYPE html>
@@ -54,33 +46,21 @@ if ($branch_result === false) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>แก้ไขเป้าหมายยอดขาย</title>
-    <style>
-        /* เพิ่ม CSS ตามต้องการ */
-    </style>
+    <title>Update Target for Month</title>
 </head>
 <body>
-    <h1>แก้ไขเป้าหมายยอดขาย</h1>
-    <form method="POST" action="update_process.php">
-        
-       <h1>   <?php echo htmlspecialchars($year); ?></h1>
-       <h1>  <?php echo htmlspecialchars($branch_name); ?></h1>
-        
-    <form action="">
-        <h3>เป้าหมายยอดขายรายเดือน:</h3>
-        <table>
-            <tr>
-                <th>เดือน</th>
-                <th>เป้าหมายยอดขาย</th>
-            </tr>
-            <?php for ($month = 1; $month <= 12; $month++): ?>
-            <tr>
-                <td><?php echo date('F', mktime(0, 0, 0, $month, 10)); ?></td>
-                <td><input type="number" name="target_<?php echo $month; ?>" step="0.01" value="<?php echo isset($targets[$month]) ? htmlspecialchars($targets[$month]) : 0; ?>"></td>
-            </tr>
-            <?php endfor; ?>
-        </table>
-        <button type="submit">บันทึกการเปลี่ยนแปลง</button>
+    <h1>Update Target for <?php echo date('F', mktime(0, 0, 0, $month, 1)); ?></h1>
+    
+    <form action="update_process.php" method="POST">
+        <input type="hidden" name="year" value="<?php echo htmlspecialchars($year); ?>">
+        <input type="hidden" name="branch_name" value="<?php echo htmlspecialchars($branch_name); ?>">
+        <input type="hidden" name="month" value="<?php echo htmlspecialchars($month); ?>">
+
+        <label for="target_amount">Target Amount:</label>
+        <input type="text" name="target_amount" id="target_amount" value="<?php echo htmlspecialchars($target_amount); ?>">
+
+        <button type="submit">Update</button>
     </form>
+
 </body>
 </html>

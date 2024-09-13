@@ -99,18 +99,20 @@ function getBranches($conn, $areazone_id = null)
     }
 }
 
-//$sql = "SELECT target_year, branch_id, SUM(target_amt) as total_amount FROM target GROUP BY target_year, branch_id";
-//$result = $conn->query($sql);
 
-//$sql = "SELECT t.target_year, b.branch_name, SUM(t.target_amt) as total_amount
-       // FROM target t
-        //JOIN branch b ON t.branch_id = b.branch_id";
  
-        $sql = "SELECT t.target_year, b.branch_name, SUM(t.target_amt) AS total_amount
-        FROM target t
-        JOIN branch b ON t.branch_id = b.branch_id
-        GROUP BY t.target_year, b.branch_name";
+    //    $sql = "SELECT t.target_year, b.branch_name, SUM(t.target_amt) AS total_amount
+    //    FROM target t
+    //    JOIN branch b ON t.branch_id = b.branch_id
+   //     GROUP BY t.target_year, b.branch_name";
+    //    $result = $conn->query($sql);
+    $sql = "SELECT t.target_year, b.branch_name, t.target_month, t.target_amt AS target_amount
+    FROM target t
+    JOIN branch b ON t.branch_id = b.branch_id
+    ORDER BY t.target_year, t.target_month, b.branch_name";
 $result = $conn->query($sql);
+
+
 
 
 // รับค่า areazone_id จากการส่งฟอร์ม
@@ -380,24 +382,27 @@ $areazones = getAreazones($conn);
         <tr>
             <th>ปี</th>
             <th>สาขา</th>
-            <th>เงินรวม</th>
+            <th>เดือน</th>
+            <th>เงิน</th>
             <th>แก้ไข</th>
             <th>ลบ</th>
         </tr>
     </thead>
     <tbody>
-        <?php while ($row = $result->fetch_assoc()): ?>
-        <tr>
-            <td><?php echo htmlspecialchars($row['target_year']); ?></td>
-            <td><?php echo htmlspecialchars($row['branch_name']); ?></td>
-            <td><?php echo htmlspecialchars($row['total_amount']); ?></td>
+    <?php while ($row = $result->fetch_assoc()): ?>
+    <tr>
+        <td><?php echo htmlspecialchars($row['target_year']); ?></td>
+        <td><?php echo htmlspecialchars($row['branch_name']); ?></td>
+        <td><?php echo htmlspecialchars($row['target_month']); ?></td>
+        <td><?php echo htmlspecialchars($row['target_amount']); ?></td>
 
-            <td><a href="update.php?year=<?php echo urlencode($row['target_year']); ?>&branch_name=<?php echo urlencode($row['branch_name']); ?>">แก้ไข</a></td>
-            <td><a href="delete.php?year=<?php echo urlencode($row['target_year']); ?>&branch_name=<?php echo urlencode($row['branch_name']); ?>">ลบ</a></td>
-
-        </tr>
-        <?php endwhile; ?>
-    </tbody>
+        <!-- ใช้ branch_name เป็นพารามิเตอร์สำหรับแก้ไขและลบ -->
+        
+        <td><a href="update.php?year=<?php echo urlencode($row['target_year']); ?>&branch_name=<?php echo urlencode($row['branch_name']); ?>&month=<?php echo urlencode($row['target_month']); ?>">แก้ไข</a> </td>
+        <td><a href="delete.php?year=<?php echo urlencode($row['target_year']); ?>&branch_name=<?php echo urlencode($row['branch_name']); ?>">ลบ</a></td>
+    </tr>
+    <?php endwhile; ?>
+</tbody>
 </table>
 
         </div>

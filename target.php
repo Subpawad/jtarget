@@ -1,6 +1,7 @@
 <?php
 include 'db_connection.php'; // Include your database connection file
 
+
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $year = isset($_POST['year']) ? $_POST['year'] : null;
     $branch_id = isset($_POST['branch_id']) ? $_POST['branch_id'] : null;
@@ -79,10 +80,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             echo "Error: " . $e->getMessage();
             exit();
         }
-    } else {
-        echo "Missing required form data.";
     }
 }
+
 // ฟังก์ชันดึงข้อมูล areazone
 function getAreazones($conn)
 {
@@ -99,12 +99,53 @@ function getBranches($conn, $areazone_id = null)
     }
 }
 
+// ดึงข้อมูลปี
+$yearsQuery = "SELECT DISTINCT target_year FROM target ORDER BY target_year DESC";
+$yearsResult = $conn->query($yearsQuery);
+$years = [];
+if ($yearsResult->num_rows > 0) {
+    while ($row = $yearsResult->fetch_assoc()) {
+        $years[] = $row['target_year'];
+    }
+}
+
+// ดึงข้อมูลสาขา
+$branchesQuery = "SELECT DISTINCT branch_name FROM branch ORDER BY branch_name";
+$branchesResult = $conn->query($branchesQuery);
+
+$branches = [];
+if ($branchesResult && $branchesResult->num_rows > 0) {
+    while ($row = $branchesResult->fetch_assoc()) {
+        $branches[] = $row['branch_name']; 
+    }
+}
+
+
+
+// รับค่าฟิลเตอร์ปีและสาขา
+$year_filter = isset($_POST['year_filter']) ? $_POST['year_filter'] : '';
+$branch_filter = isset($_POST['branch_filter']) ? $_POST['branch_filter'] : '';
+
+
+
+// Query สำหรับดึงข้อมูลยอดขาย
+$sql = "SELECT t.target_year, b.branch_name, t.target_month, t.target_amt AS target_amount
+        FROM target t
+        JOIN branch b ON t.branch_id = b.branch_id
+        ORDER BY t.target_year, t.target_month, b.branch_name";
+$result = $conn->query($sql);
 
 // รับค่า areazone_id จากการส่งฟอร์ม
 $selected_areazone_id = isset($_POST['areazone_id']) ? $_POST['areazone_id'] : null;
 $branches = getBranches($conn, $selected_areazone_id);
 $areazones = getAreazones($conn);
+
+
+
+
 ?>
+
+
 
 <!DOCTYPE html>
 <html lang="th">
@@ -113,6 +154,7 @@ $areazones = getAreazones($conn);
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>เพิ่มเป้ายอดขาย</title>
+    
     <style>
         body {
             font-family: 'Kanit', sans-serif;
@@ -204,18 +246,59 @@ $areazones = getAreazones($conn);
             margin-top: 20px;
         }
 
-        button {
+        .button-Gu {
+            margin: 2px;
+            padding: 5px;
+            background-color: #4CAF50; /* สีเขียวสำหรับปุ่มหลัก */
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            width: 40%;
+            text-align: center; /* จัดข้อความให้กลาง */
+        }
+
+        .button-table {
+            margin: 2px;
+            padding: 5px;
+            background-color: #b7b6b3; /* สีเขียวสำหรับปุ่มหลัก */
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            width: 40%;
+            text-align: center; /* จัดข้อความให้กลาง */
+        }
+
+        .button-main {
             padding: 10px;
-            background-color: #4CAF50;
+            background-color: #4CAF50; /* สีเขียวสำหรับปุ่มหลัก */
             color: white;
             border: none;
             border-radius: 5px;
             cursor: pointer;
             width: 48%;
+            text-align: center; /* จัดข้อความให้กลาง */
         }
 
-        button:hover {
-            background-color: #45a049;
+        .button-main:hover {
+            background-color: #009933; /* สีเขียวเข้มเมื่อเอาเมาส์ไปชี้ */
+        }
+
+        /* ปุ่มยกเลิก */
+        .button-cancel {
+            padding: 10px;
+            background-color: #f44336; /* สีแดงสำหรับปุ่มยกเลิก */
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            width: 48%;
+            text-align: center; /* จัดข้อความให้กลาง */
+        }
+
+        .button-cancel:hover {
+            background-color: #d32f2f; /* สีแดงเข้มเมื่อเอาเมาส์ไปชี้ */
         }
 
         .hidden {
@@ -227,7 +310,52 @@ $areazones = getAreazones($conn);
             font-size: 18px;
             font-weight: bold;
         }
-    </style>
+        .modal-overlay {
+            display: none; /* Hidden by default */
+            position: fixed; /* Stay in place */
+            z-index: 1; /* Sit on top */
+            left: 0;
+            top: 0;
+            width: 100%; /* Full width */
+            height: 100%; /* Full height */
+            background-color: rgba(0,0,0,0.4); /* Black w/ opacity */
+            overflow: hidden; /* Prevent scrolling */
+        }
+
+        /* Modal Content */
+        .modal-content {
+            background-color: #fefefe;
+            margin: auto; /* Center it horizontally */
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%; /* Could be more or less, depending on screen size */
+            max-width: 600px; /* Optional: Adjust width as needed */
+            position: fixed; /* Fix position */
+            top: 50%; /* Center vertically */
+            left: 50%; /* Center horizontally */
+            transform: translate(-50%, -50%); /* Center the modal */
+        }
+
+        /* Close Button */
+        .close-button {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+        }
+
+        .close-button:hover,
+        .close-button:focus {
+            background-color: #d32f2f;
+            text-decoration: none;
+            cursor: pointer;
+        }
+        /* ซ่อนตารางโดยเริ่มต้น */
+        #salesTable {
+            display: none;
+        }
+        
+        </style>
 </head>
 
 <body>
@@ -237,11 +365,11 @@ $areazones = getAreazones($conn);
             <h3>ชื่อ - นามสกุล</h3>
             <p>ตำแหน่ง</p>
         </div>
-        <a href="index.html" class="menu-item">หน้าแรก</a>
-        <a href="Add information.html" class="menu-item">เพิ่มข้อมูล</a>
-        <a href="setting.html" class="menu-item">การตั้งค่าสิทธิ์</a>
-        <a href="setting2.html" class="menu-item">ตั้งค่า2</a>
-        <a href="averaging.html" class="menu-item">การเฉลี่ยยอด</a>
+        <a href="index.php" class="menu-item">หน้าแรก</a>
+        <a href="Add information.php" class="menu-item">เพิ่มข้อมูล</a>
+        <a href="setting.php" class="menu-item">การตั้งค่าสิทธิ์</a>
+        <a href="setting2.php" class="menu-item">ตั้งค่า2</a>
+        <a href="averaging.php" class="menu-item">การเฉลี่ยยอด</a>
     </div>
     <div class="main-content">
         <div class="container">
@@ -255,16 +383,17 @@ $areazones = getAreazones($conn);
                     <label><input type="radio" name="method" value="last_year_target"> ใช้เป้าหมายจากปีที่แล้ว</label><br>
                     <label><input type="radio" name="method" value="actual_sales"> คำนวณจากยอดขายจริงของปีที่แล้ว</label><br>
                     <div class="button-group">
-                        <button type="button" id="cancel-button" onclick="goBack()">ยกเลิก</button>
-                        <button type="button" onclick="goToNextStep()">ถัดไป</button>
+                        <button type="button" class="button-Gu" onclick="goToNextStep()">ถัดไป</button>
                     </div>
                 </form>
             </div>
 
+            
+
             <!-- Step 2: Data Entry for Selected Method -->
             <div id="data-entry" class="step hidden">
                 <h2>กรอกข้อมูล</h2>
-                <form method="POST" action="">
+                <form id="data-form" method="POST" action="target.php">
                     <label for="year">ปี:</label>
                     <select id="year" name="year">
                         <option value="2024">2024</option>
@@ -290,7 +419,7 @@ $areazones = getAreazones($conn);
                     <div id="manual-entry" class="hidden">
                         <h3>กรอกเป้าหมายยอดขาย</h3>
                         <label for="annual_target">เป้าหมายยอดขายรายปี:</label>
-                        <input type="number" id="annual_target" name="annual_target" step="0.01" value="12000" oninput="updateMonthlyTargets()"><br><br>
+                        <input type="number" id="annual_target" name="annual_target" step="0.01" value="10,000" oninput="updateMonthlyTargets()"><br><br>
 
                         <h3>เป้าหมายยอดขายรายเดือน:</h3>
                         <table>
@@ -352,20 +481,120 @@ $areazones = getAreazones($conn);
                         </div>
                     </div>
 
-
-
                     <!-- Additional sections for other methods can be added here -->
-
                     <div class="button-group">
-                        <button type="submit">บันทึก</button>
-                        <button type="button" id="back-button" onclick="goBack()">ย้อนกลับ</button>
+                        <button type="button" class="button-cancel" onclick="goBack()">ยกเลิก</button>
+                        <button type="button" class="button-main" onclick="validateAndProceed()">บันทึกข้อมูล</button>
                     </div>
                 </form>
+                <!-- Modal Overlay -->
+                    <div id="modal-overlay" class="modal-overlay">
+                        <div class="modal-content">
+                            <p>คุณแน่ใจหรือไม่ว่าต้องการบันทึกข้อมูลนี้?</p>
+                            <button type="button" class="button-cancel" onclick="closeModal()">ยกเลิก</button>
+                            <button type="button" class="button-main" onclick="confirmAction()">ตกลง</button>
+                        </div>
+                    </div>
+                </div>
+                <button class="button-table" onclick="toggleTable()">แสดง/ซ่อน ตารางยอดขาย</button>
+                <div id="filterContainer">
+                <label for="yearFilter">ปี:</label>
+                        <select id="yearFilter" name="year_filter" onchange="filterTable()">
+                            <option value="">ทั้งหมด</option>
+                            <?php foreach ($years as $year): ?>
+                            <option value="<?php echo htmlspecialchars($year); ?>" <?php echo $year == $year_filter ? 'selected' : ''; ?>>
+                                <?php echo htmlspecialchars($year); ?>
+                            </option>
+                            <?php endforeach; ?>
+                        </select>
+                        <label for="branchFilter">สาขา:</label>
+                            <select id="branchFilter" name="branch_filter" onchange="filterTable()">
+                                <option value="">ทั้งหมด</option>
+                                <?php foreach ($branches as $branch): ?>
+                                <option value="<?php echo htmlspecialchars($branch['branch_name']); ?>" <?php echo $branch['branch_name'] == $branch_filter ? 'selected' : ''; ?>>
+                                    <?php echo htmlspecialchars($branch['branch_name']); ?>
+                                </option>
+                                <?php endforeach; ?>
+                            </select>
+
+
+                    <label for="monthFilter">เดือน:</label>
+                    <select id="monthFilter" onchange="filterTable()">
+                        <option value="">ทั้งหมด</option>
+                        <option value="1">มกราคม</option>
+                        <option value="2">กุมภาพันธ์</option>
+                        <option value="3">มีนาคม</option>
+                        <option value="4">เมษายน</option>
+                        <option value="5">พฤษภาคม</option>
+                        <option value="6">มิถุนายน</option>
+                        <option value="7">กรกฎาคม</option>
+                        <option value="8">สิงหาคม</option>
+                        <option value="9">กันยายน</option>
+                        <option value="10">ตุลาคม</option>
+                        <option value="11">พฤศจิกายน</option>
+                        <option value="12">ธันวาคม</option>
+                    </select>
+                </div>
+                <table id="salesTable" border="1">
+                    <thead>
+                        <tr>
+                            <th>ปี</th>
+                            <th>สาขา</th>
+                            <th>เดือน</th>
+                            <th>เป้ายอดขาย</th>
+                            <th>แก้ไข</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    <?php while ($row = $result->fetch_assoc()): ?>
+                    <tr>
+                        <td><?php echo htmlspecialchars($row['target_year']); ?></td>
+                        <td><?php echo htmlspecialchars($row['branch_name']); ?></td>
+                        <td><?php echo htmlspecialchars($row['target_month']); ?></td>
+                        <td><?php echo htmlspecialchars($row['target_amount']); ?></td>
+                        <td><a href="update.php?year=<?php echo urlencode($row['target_year']); ?>&branch_name=<?php echo urlencode($row['branch_name']); ?>&month=<?php echo urlencode($row['target_month']); ?>">แก้ไข</a></td>
+                    </tr>
+                    <?php endwhile; ?>
+                    </tbody>
+                </table>
+            
             </div>
         </div>
     </div>
 
     <script>
+     function filterTable() {
+    var yearFilter = document.getElementById('yearFilter').value;
+    var branchFilter = document.getElementById('branchFilter').value;
+    var monthFilter = document.getElementById('monthFilter').value;
+
+    var table = document.getElementById('salesTable');
+    var rows = table.getElementsByTagName('tbody')[0].getElementsByTagName('tr');
+
+    for (var i = 0; i < rows.length; i++) {
+        var cells = rows[i].getElementsByTagName('td');
+        var year = cells[0].textContent || cells[0].innerText;
+        var branch = cells[1].textContent || cells[1].innerText;
+        var month = cells[2].textContent || cells[2].innerText;
+
+        var showRow = true;
+
+        if (yearFilter && year !== yearFilter) {
+            showRow = false;
+        }
+        if (branchFilter && branch !== branchFilter) {
+            showRow = false;
+        }
+        if (monthFilter && month !== monthFilter) {
+            showRow = false;
+        }
+
+        rows[i].style.display = showRow ? '' : 'none';
+    }
+}
+
+
+
         function goToNextStep() {
             document.getElementById('method-selection').classList.add('hidden');
             document.getElementById('data-entry').classList.remove('hidden');
@@ -375,7 +604,23 @@ $areazones = getAreazones($conn);
             document.getElementById('manual-entry').classList.toggle('hidden', selectedMethod !== 'manual');
         }
 
-    
+        function toggleTable() {
+            var table = document.getElementById('salesTable');
+            // เช็คสถานะการแสดงผลปัจจุบันและเปลี่ยนแปลง
+            if (table.style.display === 'none' || table.style.display === '') {
+                table.style.display = 'table';
+            } else {
+                table.style.display = 'none';
+            }
+        }
+
+        // ฟังก์ชันสำหรับยืนยันการลบข้อมูล
+        function confirmDelete(url) {
+            if (confirm('คุณแน่ใจว่าต้องการลบข้อมูลนี้?')) {
+                window.location.href = url;
+            }
+        }
+
         function updateMonthlyTargets() {
             const annualTarget = parseFloat(document.getElementById('annual_target').value) || 0;
             const monthlyTargets = annualTarget / 12;
@@ -384,8 +629,7 @@ $areazones = getAreazones($conn);
             for (let month = 1; month <= 12; month++) {
                 const input = document.getElementById(`target_${month}`);
                 if (input) {
-                    // const value = (monthlyTargets);
-                    const value = Math.floor((monthlyTargets + (month <= remainder ? +0.01 : 0)) * 100) / 100;
+                    const value = Math.floor((monthlyTargets + (month <= remainder ? 0.01 : 0)) * 100) / 100;
                     input.value = value.toFixed(2);
                     input.disabled = false;
                 }
@@ -395,14 +639,12 @@ $areazones = getAreazones($conn);
 
         function updateTotalTarget() {
             let totalSum = 0;
-
             for (let month = 1; month <= 12; month++) {
                 const input = document.getElementById(`target_${month}`);
                 if (input) {
                     totalSum += parseFloat(input.value) || 0;
                 }
             }
-
             document.getElementById('total-target').textContent = totalSum.toFixed(2);
         }
 
@@ -410,11 +652,63 @@ $areazones = getAreazones($conn);
             window.history.back();
         }
 
+        function showModal() {
+            document.getElementById('modal-overlay').style.display = 'block';
+        }
+
+        function closeModal() {
+            document.getElementById('modal-overlay').style.display = 'none';
+        }
+
+        function confirmAction() {
+            document.getElementById('data-form').submit();
+            closeModal();
+        }
+
+        function validateAndProceed() {
+            const areazone = document.getElementById('areazone').value;
+            const branch = document.getElementById('branch_id').value;
+            const annual_target = document.getElementById('annual_target').value;
+
+            if (areazone === "") {
+                alert("กรุณาเลือก AreaZone");
+                return;
+            }
+
+            if (branch === "") {
+                alert("กรุณาเลือกสาขา");
+                return;
+            }
+
+            if (annual_target === "") {
+                alert("กรุณาเลือกระบุเป้ายอดขาย!");
+                return;
+            }
+    
+            // ตรวจสอบว่าแต่ละเดือนมีค่าไม่เป็นศูนย์
+            let allMonthsValid = true;
+            for (let month = 1; month <= 12; month++) {
+                const input = document.getElementById(`target_${month}`);
+                if (input) {
+                    const value = parseFloat(input.value) || 0;
+                    if (value <= 0) {
+                        alert(`กรุณากรอกเป้าหมายยอดขายที่มากกว่า 0 สำหรับเดือน ${monthToStr(month)}`);
+                        allMonthsValid = false;
+                        break;
+                    }
+                }
+            }
+
+            if (!allMonthsValid) {
+                return;
+            }
+            showModal();
+        }
+
         function monthToStr(month) {
             const months = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
             return months[month - 1];
         }
-
         document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('areazone').addEventListener('change', function() {
                 var areazone_id = this.value;
@@ -429,13 +723,6 @@ $areazones = getAreazones($conn);
                 xhr.send('areazone_id=' + encodeURIComponent(areazone_id));
             });
         });
-
-        document.getElementById('date').addEventListener('change', function() {
-            var dateValue = new Date(this.value);
-            var year = dateValue.getFullYear();
-            document.getElementById('year').value = year;
-        });
     </script>
 </body>
-
 </html>

@@ -255,7 +255,7 @@ $areazones = getAreazones($conn);
         <a href="index.html" class="menu-item">หน้าแรก</a>
         <a href="Add information.html" class="menu-item">เพิ่มข้อมูล</a>
         <a href="setting.html" class="menu-item">การตั้งค่าสิทธิ์</a>
-        <a href="setting2.html" class="menu-item">ตั้งค่า2</a>
+        <a href="setting2.php" class="menu-item">ตั้งค่า2</a>
         <a href="averaging.html" class="menu-item">การเฉลี่ยยอด</a>
     </div>
     <div class="main-content">
@@ -275,6 +275,34 @@ $areazones = getAreazones($conn);
                     </div>
                 </form>
             </div>
+
+            
+    <h1>ขั้นตอน 3: ข้อมูลเป้าหมายยอดขาย</h1>
+    <table border="1" id="data-display" class="step">
+        <thead>
+            <tr>
+                <th>ปี</th>
+                <th>สาขา</th>
+                <th>เดือน</th>
+                <th>เงิน</th>
+                <th>แก้ไข</th>
+                <th>ลบ</th>
+            </tr>
+        </thead>
+        <tbody>
+            <?php while ($row = $result->fetch_assoc()): ?>
+            <tr>
+                <td><?php echo htmlspecialchars($row['target_year']); ?></td>
+                <td><?php echo htmlspecialchars($row['branch_name']); ?></td>
+                <td><?php echo htmlspecialchars($row['target_month']); ?></td>
+                <td><?php echo htmlspecialchars($row['target_amount']); ?></td>
+                <td><a href="update.php?year=<?php echo urlencode($row['target_year']); ?>&branch_name=<?php echo urlencode($row['branch_name']); ?>&month=<?php echo urlencode($row['target_month']); ?>">แก้ไข</a></td>
+                <td><a href="delete.php?year=<?php echo urlencode($row['target_year']); ?>&branch_name=<?php echo urlencode($row['branch_name']); ?>">ลบ</a></td>
+            </tr>
+            <?php endwhile; ?>
+        </tbody>
+    </table>
+
 
             <!-- Step 2: Data Entry for Selected Method -->
             <div id="data-entry" class="step hidden">
@@ -376,35 +404,6 @@ $areazones = getAreazones($conn);
                     </div>
                 </form>
             </div>
-            <h1>Manage Targets</h1>
-<table border="1">
-    <thead>
-        <tr>
-            <th>ปี</th>
-            <th>สาขา</th>
-            <th>เดือน</th>
-            <th>เงิน</th>
-            <th>แก้ไข</th>
-            <th>ลบ</th>
-        </tr>
-    </thead>
-    <tbody>
-    <?php while ($row = $result->fetch_assoc()): ?>
-    <tr>
-        <td><?php echo htmlspecialchars($row['target_year']); ?></td>
-        <td><?php echo htmlspecialchars($row['branch_name']); ?></td>
-        <td><?php echo htmlspecialchars($row['target_month']); ?></td>
-        <td><?php echo htmlspecialchars($row['target_amount']); ?></td>
-
-        <!-- ใช้ branch_name เป็นพารามิเตอร์สำหรับแก้ไขและลบ -->
-        
-        <td><a href="update.php?year=<?php echo urlencode($row['target_year']); ?>&branch_name=<?php echo urlencode($row['branch_name']); ?>&month=<?php echo urlencode($row['target_month']); ?>">แก้ไข</a> </td>
-        <td><a href="delete.php?year=<?php echo urlencode($row['target_year']); ?>&branch_name=<?php echo urlencode($row['branch_name']); ?>">ลบ</a></td>
-    </tr>
-    <?php endwhile; ?>
-</tbody>
-</table>
-
         </div>
     </div>
 
@@ -412,6 +411,8 @@ $areazones = getAreazones($conn);
         function goToNextStep() {
             document.getElementById('method-selection').classList.add('hidden');
             document.getElementById('data-entry').classList.remove('hidden');
+            document.getElementById('data-display').classList.add('hidden');
+            
 
             const selectedMethod = document.querySelector('input[name="method"]:checked').value;
 

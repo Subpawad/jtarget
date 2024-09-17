@@ -32,7 +32,9 @@ $stmt = $conn->prepare($update_sql);
 $stmt->bind_param('diii', $target_amount, $year, $branch_id, $month);
 
 if ($stmt->execute()) {
-    echo "Target updated successfully!";
+    // อัปเดตสำเร็จ เปลี่ยนเส้นทางไปหน้าหลัก
+    header("Location: test.php");
+    exit();  // ต้องใช้ exit() เพื่อหยุดการทำงานหลังจากเปลี่ยนเส้นทาง
 } else {
     echo "Error updating target: " . $conn->error;
 }
